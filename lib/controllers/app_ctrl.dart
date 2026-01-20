@@ -1,6 +1,9 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_appauth/flutter_appauth.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:intl/intl.dart';
 import 'package:livekit_client/livekit_client.dart' as sdk;
 import 'package:livekit_components/livekit_components.dart' as components;
@@ -8,7 +11,11 @@ import 'package:logging/logging.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-enum AppScreenState { welcome, agent }
+import '../config.dart';
+import '../support/auth_repository.dart';
+import '../support/livekit_token_repository.dart';
+
+enum AppScreenState { login, welcome, agent }
 
 enum AgentScreenState { visualizer, transcription }
 
@@ -17,8 +24,12 @@ class AppCtrl extends ChangeNotifier {
   static final _logger = Logger('AppCtrl');
 
   // States
-  AppScreenState appScreenState = AppScreenState.welcome;
+  AppScreenState appScreenState = AppScreenState.login;
   AgentScreenState agentScreenState = AgentScreenState.visualizer;
+
+  // Repositories
+  final _authRepo = AuthRepository(const FlutterAppAuth(), const FlutterSecureStorage(), KeycloakConfig());
+  final _tokenRepo = LiveKitTokenRepository(Dio());
 
   //Test
   bool isUserCameEnabled = false;
@@ -29,30 +40,41 @@ class AppCtrl extends ChangeNotifier {
 
   late final sdk.Room room = sdk.Room(roomOptions: const sdk.RoomOptions(enableVisualizer: true));
   late final roomContext = components.RoomContext(room: room);
-  late final sdk.Session session = _createSession(room: room);
+  // Removed 'final' to allow session replacement
+  late sdk.Session session = _createSession(room: room);
 
   static sdk.Session _createSession({required sdk.Room room}) {
-    // Development-only hardcoded credentials (optional).
-    const hardcodedServerUrl = null; // e.g. 'wss://your-host'
-    const hardcodedToken = null; // e.g. 'eyJ...'
+    // We can use a default sandbox or dev setup for initial state
+    final devServerUrl = dotenv.env['LIVEKIT_URL']?.replaceAll('"', '');
+    final devToken = dotenv.env['LIVEKIT_TOKEN']?.replaceAll('"', '');
 
-    if (hardcodedServerUrl != null && hardcodedToken != null) {
+    if (devServerUrl != null && devToken != null) {
       return sdk.Session.fromFixedTokenSource(
         sdk.LiteralTokenSource(
-          serverUrl: hardcodedServerUrl,
-          participantToken: hardcodedToken,
+          serverUrl: devServerUrl,
+          participantToken: devToken,
         ),
         options: sdk.SessionOptions(room: room),
       );
     }
 
+    // Fallback to sandbox or placeholder if needed.
+    // If no config, we might crash if we try to use it, but for now restoration of original logic is safest.
     final sandboxId = dotenv.env['LIVEKIT_SANDBOX_ID']?.replaceAll('"', '');
-    if (sandboxId == null || sandboxId.isEmpty) {
-      throw StateError('LIVEKIT_SANDBOX_ID is not set and no hardcoded token is configured.');
+    if (sandboxId != null && sandboxId.isNotEmpty) {
+      return sdk.Session.fromConfigurableTokenSource(
+        sdk.SandboxTokenSource(sandboxId: sandboxId).cached(),
+        options: sdk.SessionOptions(room: room),
+      );
     }
 
-    return sdk.Session.fromConfigurableTokenSource(
-      sdk.SandboxTokenSource(sandboxId: sandboxId).cached(),
+    // Fallback for when we really don't have anything (should rely on connect() later)
+    // We create a dummy session that won't connect but satisfies the type.
+    return sdk.Session.fromFixedTokenSource(
+      sdk.LiteralTokenSource(
+        serverUrl: '',
+        participantToken: '',
+      ),
       options: sdk.SessionOptions(room: room),
     );
   }
@@ -78,6 +100,27 @@ class AppCtrl extends ChangeNotifier {
     });
 
     session.addListener(_handleSessionChange);
+
+    // Check initial auth state
+    checkAuth();
+  }
+
+  Future<void> checkAuth() async {
+    final token = await _authRepo.checkAuth();
+    if (token != null) {
+      appScreenState = AppScreenState.welcome;
+    } else {
+      appScreenState = AppScreenState.login;
+    }
+    notifyListeners();
+  }
+
+  Future<void> login() async {
+    final token = await _authRepo.login();
+    if (token != null) {
+      appScreenState = AppScreenState.welcome;
+      notifyListeners();
+    }
   }
 
   Future<void> cleanUp() async {
@@ -126,7 +169,7 @@ class AppCtrl extends ChangeNotifier {
     notifyListeners();
   }
 
-  void connect() async {
+  Future<void> connect() async {
     if (isSessionStarting) {
       _logger.fine('Connection attempt ignored: session already starting.');
       return;
@@ -137,21 +180,52 @@ class AppCtrl extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await session.start();
+      // 1. Get auth token
+      final accessToken = await _authRepo.getAccessToken();
+      if (accessToken == null) {
+        // If we're here, we're likely on the Welcome screen and should have a token.
+        // But if not, we switch back to login state.
+        appScreenState = AppScreenState.login;
+        notifyListeners();
+        return;
+      }
+
+      // 2. Get LiveKit token
+      final liveKitToken = await _tokenRepo.getToken(accessToken, 'my-test-room');
+
+      // 3. Connect using the logic from prompt
+      final url = dotenv.env['LIVEKIT_URL']?.replaceAll('"', '') ?? '';
+
+      await _connectToRoom(url, liveKitToken);
+
       if (session.connectionState == sdk.ConnectionState.connected) {
         appScreenState = AppScreenState.agent;
         notifyListeners();
       }
-    } catch (error, stackTrace) {
-      _logger.severe('Connection error: $error', error, stackTrace);
-      appScreenState = AppScreenState.welcome;
-      notifyListeners();
+    } catch (e) {
+      _logger.severe('Connection error: $e');
     } finally {
-      if (isSessionStarting) {
-        isSessionStarting = false;
-        notifyListeners();
-      }
+      isSessionStarting = false;
+      notifyListeners();
     }
+  }
+
+  Future<void> _connectToRoom(String url, String token) async {
+    session.removeListener(_handleSessionChange);
+    await session.dispose();
+
+    final newSession = sdk.Session.fromFixedTokenSource(
+      sdk.LiteralTokenSource(
+        serverUrl: url,
+        participantToken: token,
+      ),
+      options: sdk.SessionOptions(room: room),
+    );
+
+    session = newSession;
+    session.addListener(_handleSessionChange);
+
+    await session.start();
   }
 
   Future<void> disconnect() async {
