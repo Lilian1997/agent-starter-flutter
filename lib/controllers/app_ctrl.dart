@@ -2,8 +2,6 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_appauth/flutter_appauth.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:intl/intl.dart';
 import 'package:livekit_client/livekit_client.dart' as sdk;
 import 'package:livekit_components/livekit_components.dart' as components;
@@ -11,7 +9,6 @@ import 'package:logging/logging.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-import '../config.dart';
 import '../support/auth_repository.dart';
 import '../support/livekit_token_repository.dart';
 
@@ -27,8 +24,8 @@ class AppCtrl extends ChangeNotifier {
   AppScreenState appScreenState = AppScreenState.login;
   AgentScreenState agentScreenState = AgentScreenState.visualizer;
 
-  // Repositories
-  final _authRepo = AuthRepository(const FlutterAppAuth(), const FlutterSecureStorage(), KeycloakConfig());
+  // Repositories - use singleton for AuthRepository
+  final _authRepo = AuthRepository.instance;
   final _tokenRepo = LiveKitTokenRepository(Dio());
 
   //Test

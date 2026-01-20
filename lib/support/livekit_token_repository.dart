@@ -20,8 +20,11 @@ class LiveKitTokenRepository {
     if (isDevMode) {
       return dotenv.env['LIVEKIT_TOKEN']!;
     }
-
+// 因為後端還沒串接，先用 hardcode 的 token
+    return dotenv.env['LIVEKIT_TOKEN']!;
+    
     try {
+      // 拿 keycloak token 去取 livekit token
       final response = await _dio.post(
         '/api/livekit/token',
         data: {'roomName': roomName},

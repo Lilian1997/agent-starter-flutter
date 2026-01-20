@@ -7,20 +7,27 @@ import '../config.dart';
 
 part 'auth_repository.g.dart';
 
+// Singleton instances to prevent state loss during OAuth flow
+final FlutterAppAuth _sharedAppAuth = FlutterAppAuth();
+const FlutterSecureStorage _sharedSecureStorage = FlutterSecureStorage();
+
 @riverpod
 AuthRepository authRepository(Ref ref) {
-  return AuthRepository(const FlutterAppAuth(), const FlutterSecureStorage(), KeycloakConfig());
+  return AuthRepository.instance;
 }
 
 class AuthRepository {
-  final FlutterAppAuth _appAuth;
-  final FlutterSecureStorage _secureStorage;
-  final KeycloakConfig _keycloakConfig;
+  // Singleton pattern
+  static final AuthRepository instance = AuthRepository._internal();
+  
+  FlutterAppAuth get _appAuth => _sharedAppAuth;
+  FlutterSecureStorage get _secureStorage => _sharedSecureStorage;
+  final KeycloakConfig _keycloakConfig = KeycloakConfig();
   static const _tokenKey = 'auth_token';
 
   bool get isDevMode => dotenv.env['DEV_MODE'] == 'true';
 
-  AuthRepository(this._appAuth, this._secureStorage, this._keycloakConfig);
+  AuthRepository._internal();
 
   Future<String?> checkAuth() async {
     return await _secureStorage.read(key: _tokenKey);
@@ -39,6 +46,11 @@ class AuthRepository {
       return devToken;
     }
 
+    print('🔐 [AuthRepository] Starting OAuth login...');
+    print('🔐 [AuthRepository] Client ID: ${_keycloakConfig.clientId}');
+    print('🔐 [AuthRepository] Redirect URL: ${_keycloakConfig.redirectUrl}');
+    print('🔐 [AuthRepository] Discovery URL: ${_keycloakConfig.discoveryUrl}');
+
     try {
       final result = await _appAuth.authorizeAndExchangeCode(
         AuthorizationTokenRequest(
@@ -46,17 +58,24 @@ class AuthRepository {
           _keycloakConfig.redirectUrl,
           discoveryUrl: _keycloakConfig.discoveryUrl,
           scopes: ['openid', 'profile', 'email'],
+          promptValues: ['login'], // Use promptValues instead of additionalParameters
         ),
       );
 
+      print('🔐 [AuthRepository] OAuth result: $result');
+
       if (result != null && result.accessToken != null) {
+        print('🔐 [AuthRepository] Got access token successfully!');
         await _secureStorage.write(key: _tokenKey, value: result.accessToken);
+        print('🔐 [AuthRepository] access token: ${result.accessToken}');
         return result.accessToken;
       }
 
+      print('🔐 [AuthRepository] No access token in result');
       return null;
-    } catch (e) {
-      // Create a specific failure or return null
+    } catch (e, stackTrace) {
+      print('❌ [AuthRepository] OAuth error: $e');
+      print('❌ [AuthRepository] Stack trace: $stackTrace');
       return null;
     }
   }
