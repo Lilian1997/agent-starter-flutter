@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../controllers/app_ctrl.dart';
+import '../support/auth_repository.dart';
 import '../widgets/button.dart';
 
 class LoginScreen extends StatelessWidget {
@@ -27,7 +28,24 @@ class LoginScreen extends StatelessWidget {
                 builder: (context, appCtrl, child) {
                   return Button(
                     text: 'Login',
-                    onPressed: () => appCtrl.login(),
+                    onPressed: () async {
+                      try {
+                        await appCtrl.login();
+                      } on AuthCancelledException {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Login cancelled')),
+                          );
+                        }
+                      } catch (e) {
+                        debugPrint('Login error: $e');
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                             const SnackBar(content: Text('Login failed')),
+                          );
+                        }
+                      }
+                    },
                     isProgressing: false, // We can add loading state later if needed
                   );
                 },

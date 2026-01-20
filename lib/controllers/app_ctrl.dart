@@ -120,6 +120,12 @@ class AppCtrl extends ChangeNotifier {
     }
   }
 
+  Future<void> logout() async {
+    await _authRepo.logout();
+    appScreenState = AppScreenState.login;
+    notifyListeners();
+  }
+
   Future<void> cleanUp() async {
     if (_hasCleanedUp) return;
     _hasCleanedUp = true;

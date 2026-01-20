@@ -82,10 +82,20 @@ class WelcomeScreen extends StatelessWidget {
                   builder: (ctx, appCtrl, session, child) {
                     final isProgressing =
                         appCtrl.isSessionStarting || session.connectionState != sdk.ConnectionState.disconnected;
-                    return buttons.Button(
-                      text: isProgressing ? 'Connecting' : 'Start call',
-                      isProgressing: isProgressing,
-                      onPressed: () => appCtrl.connect(),
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      spacing: 20,
+                      children: [
+                        buttons.Button(
+                          text: isProgressing ? 'Connecting' : 'Start call',
+                          isProgressing: isProgressing,
+                          onPressed: () => appCtrl.connect(),
+                        ),
+                        TextButton(
+                          onPressed: isProgressing ? null : () => appCtrl.logout(),
+                          child: const Text('Logout'),
+                        ),
+                      ],
                     );
                   },
                 ),
