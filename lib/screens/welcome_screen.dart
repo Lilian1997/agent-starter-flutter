@@ -49,16 +49,16 @@ class WelcomeScreen extends StatelessWidget {
                         const SizedBox(width: 8),
 
                         // Right Column (Status & Info)
-                        Expanded(
-                          flex: 2,
-                          child: Column(
-                            children: [
-                              _buildAudioStatus(),
-                              // const SizedBox(height: 8),
-                              // Expanded(child: _buildVehicleStatus()),
-                            ],
-                          ),
-                        ),
+                        // Expanded(
+                        //   flex: 2,
+                        //   child: Column(
+                        //     children: [
+                        //       _buildAudioStatus(),
+                        //       const SizedBox(height: 8),
+                        //       Expanded(child: _buildVehicleStatus()),
+                        //     ],
+                        //   ),
+                        // ),
                       ],
                     ),
                     // LayoutBuilder(

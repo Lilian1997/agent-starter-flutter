@@ -30,6 +30,11 @@ class LiveKitTokenRepository {
   }) async {
     logger.info('Requesting LiveKit token for room: $roomName, nickName: $nickName');
 
+    if (isDevMode) {
+      final devToken = dotenv.env['LIVEKIT_TOKEN']?.replaceAll('"', '');
+      return devToken!;
+    }
+
     try {
       // 建立請求 body
       final Map<String, dynamic> requestBody = {

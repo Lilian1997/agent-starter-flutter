@@ -31,6 +31,14 @@ class AuthRepository {
   AuthRepository._internal();
 
   Future<String?> checkAuth() async {
+    if (isDevMode) {
+      final devToken = dotenv.env['AUTH_TOKEN'];
+      print('🔐 [AuthRepository] Dev token: $devToken');
+      if (devToken != null) {
+        await _secureStorage.write(key: _tokenKey, value: devToken);
+        return devToken;
+      }
+    }
     return await _secureStorage.read(key: _tokenKey);
   }
 

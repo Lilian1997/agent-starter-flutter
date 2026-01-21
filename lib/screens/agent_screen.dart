@@ -159,19 +159,15 @@ class AgentScreen extends StatelessWidget {
                 Expanded(
                   child: GestureDetector(
                     onTap: () => ctx.read<AppCtrl>().messageFocusNode.unfocus(),
-                    child: Consumer<sdk.Session>(
-                      builder: (context, session, _) {
-                        if (session.messages.isEmpty) {
-                          return _AgentListeningPlaceholder(canListen: session.agent.canListen);
+                    child: Consumer<AppCtrl>(
+                      builder: (context, appCtrl, _) {
+                        final messages = appCtrl.allMessages;
+                        if (messages.isEmpty) {
+                          return _AgentListeningPlaceholder(canListen: appCtrl.session.agent.canListen);
                         }
-                        return components.ChatScrollView(
-                          session: session,
+                        return _MergedChatScrollView(
+                          messages: messages,
                           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-                          physics: const BouncingScrollPhysics(),
-                          messageBuilder: (context, message) => Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: _MessageBubble(message: message),
-                          ),
                         );
                       },
                     ),
@@ -197,54 +193,7 @@ class AgentScreen extends StatelessWidget {
       );
 }
 
-class _MessageBubble extends StatelessWidget {
-  const _MessageBubble({required this.message});
 
-  final sdk.ReceivedMessage message;
-
-  bool get _isUserMessage => message.content is sdk.UserInput || message.content is sdk.UserTranscript;
-
-  @override
-  Widget build(BuildContext context) {
-    final text = message.content.text.trim();
-    if (text.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    final bool isUser = _isUserMessage;
-    final alignment = isUser ? Alignment.centerRight : Alignment.centerLeft;
-    final colorScheme = Theme.of(context).colorScheme;
-    final background = isUser ? colorScheme.primary : colorScheme.surfaceContainerHighest;
-    final foreground = isUser ? colorScheme.onPrimary : colorScheme.onSurfaceVariant;
-
-    return Align(
-      alignment: alignment,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.75,
-        ),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: background,
-            borderRadius: BorderRadius.only(
-              topLeft: const Radius.circular(18),
-              topRight: const Radius.circular(18),
-              bottomLeft: Radius.circular(isUser ? 18 : 4),
-              bottomRight: Radius.circular(isUser ? 4 : 18),
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Text(
-              text,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: foreground),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _AgentListeningPlaceholder extends StatelessWidget {
   const _AgentListeningPlaceholder({required this.canListen});
@@ -278,6 +227,148 @@ class _AgentListeningPlaceholder extends StatelessWidget {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// Merged chat scroll view that displays all message types
+class _MergedChatScrollView extends StatefulWidget {
+  const _MergedChatScrollView({
+    required this.messages,
+    this.padding,
+  });
+
+  final List<UnifiedChatMessage> messages;
+  final EdgeInsetsGeometry? padding;
+
+  @override
+  State<_MergedChatScrollView> createState() => _MergedChatScrollViewState();
+}
+
+class _MergedChatScrollViewState extends State<_MergedChatScrollView> {
+  final ScrollController _scrollController = ScrollController();
+  int _lastMessageCount = 0;
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _autoScrollIfNeeded() {
+    if (widget.messages.length == _lastMessageCount) return;
+    _lastMessageCount = widget.messages.length;
+    
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients) return;
+      _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    _autoScrollIfNeeded();
+    
+    return ListView.builder(
+      reverse: true,
+      controller: _scrollController,
+      padding: widget.padding,
+      physics: const BouncingScrollPhysics(),
+      itemCount: widget.messages.length,
+      itemBuilder: (context, index) {
+        final message = widget.messages[widget.messages.length - 1 - index];
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: _UnifiedMessageBubble(message: message),
+        );
+      },
+    );
+  }
+}
+
+/// Message bubble that can render different sender types
+class _UnifiedMessageBubble extends StatelessWidget {
+  const _UnifiedMessageBubble({required this.message});
+
+  final UnifiedChatMessage message;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = message.text.trim();
+    if (text.isEmpty) return const SizedBox.shrink();
+
+    final colorScheme = Theme.of(context).colorScheme;
+    
+    // Determine alignment and colors based on sender type
+    final bool isUser = message.sender == MessageSender.user;
+    final bool isPeer = message.sender == MessageSender.peer;
+    
+    Alignment alignment;
+    Color background;
+    Color foreground;
+    
+    if (isUser) {
+      alignment = Alignment.centerRight;
+      background = colorScheme.primary;
+      foreground = colorScheme.onPrimary;
+    } else if (isPeer) {
+      alignment = Alignment.centerLeft;
+      background = const Color.fromARGB(255, 102, 102, 102)!; 
+      foreground = Colors.white;
+    } else {
+      // Agent
+      alignment = Alignment.centerLeft;
+      // Force readable colors for Agent for now to fix "black on black"
+      background = Colors.grey[800]!; 
+      foreground = Colors.white;
+    }
+
+    return Align(
+      alignment: alignment,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.75,
+        ),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: background,
+            borderRadius: BorderRadius.only(
+              topLeft: const Radius.circular(18),
+              topRight: const Radius.circular(18),
+              bottomLeft: Radius.circular(isUser ? 18 : 4),
+              bottomRight: Radius.circular(isUser ? 4 : 18),
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Show sender name for peer messages
+                if (isPeer && message.senderName != null) ...[
+                  Text(
+                    message.senderName!,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: foreground.withValues(alpha: 0.7),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                ],
+                Text(
+                  text,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: foreground),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
