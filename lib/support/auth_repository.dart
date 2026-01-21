@@ -19,7 +19,7 @@ AuthRepository authRepository(Ref ref) {
 class AuthRepository {
   // Singleton pattern
   static final AuthRepository instance = AuthRepository._internal();
-  
+
   FlutterAppAuth get _appAuth => _sharedAppAuth;
   FlutterSecureStorage get _secureStorage => _sharedSecureStorage;
   final KeycloakConfig _keycloakConfig = KeycloakConfig();
@@ -53,26 +53,37 @@ class AuthRepository {
     print('🔐 [AuthRepository] Discovery URL: ${_keycloakConfig.discoveryUrl}');
 
     try {
-      final result = await _appAuth.authorizeAndExchangeCode(
-        AuthorizationTokenRequest(
-          _keycloakConfig.clientId,
-          _keycloakConfig.redirectUrl,
-          discoveryUrl: _keycloakConfig.discoveryUrl,
-          scopes: ['openid', 'profile', 'email'],
-          promptValues: ['login'], // Use promptValues instead of additionalParameters
-        ),
-      );
+      // final result = await _appAuth.authorizeAndExchangeCode(
+      //   AuthorizationTokenRequest(
+      //     _keycloakConfig.clientId,
+      //     _keycloakConfig.redirectUrl,
+      //     discoveryUrl: _keycloakConfig.discoveryUrl,
+      //     scopes: ['openid', 'profile', 'email'],
+      //     promptValues: ['login'], // Use promptValues instead of additionalParameters
+      //   ),
+      // );
 
-      print('🔐 [AuthRepository] OAuth result: $result');
+      // print('🔐 [AuthRepository] OAuth result: $result');
 
-      if (result != null && result.accessToken != null) {
+      // if (result != null && result.accessToken != null) {
+      //   print('🔐 [AuthRepository] Got access token successfully!');
+      //   await _secureStorage.write(key: _tokenKey, value: result.accessToken);
+      //   if (result.idToken != null) {
+      //     await _secureStorage.write(key: _idTokenKey, value: result.idToken);
+      //   }
+      //   print('🔐 [AuthRepository] access token: ${result.accessToken}');
+      //   return result.accessToken;
+      // }
+
+      final devAccessToken = dotenv.env['AUTH_TOKEN'];
+      final devIdToken = dotenv.env['AUTH_ID_TOKEN'];
+
+      if (devAccessToken != null && devIdToken != null) {
         print('🔐 [AuthRepository] Got access token successfully!');
-        await _secureStorage.write(key: _tokenKey, value: result.accessToken);
-        if (result.idToken != null) {
-          await _secureStorage.write(key: _idTokenKey, value: result.idToken);
-        }
-        print('🔐 [AuthRepository] access token: ${result.accessToken}');
-        return result.accessToken;
+        await _secureStorage.write(key: _tokenKey, value: devAccessToken);
+        await _secureStorage.write(key: _idTokenKey, value: devIdToken);
+        print('🔐 [AuthRepository] access token: $devAccessToken');
+        return devAccessToken;
       }
 
       print('🔐 [AuthRepository] No access token in result');
@@ -92,7 +103,7 @@ class AuthRepository {
       // 1. Get ID Token for hint
       String? idToken;
       try {
-         idToken = await _secureStorage.read(key: _idTokenKey);
+        idToken = await _secureStorage.read(key: _idTokenKey);
       } catch (_) {}
 
       // 2. Local Cleanup

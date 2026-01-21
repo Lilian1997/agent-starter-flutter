@@ -22,13 +22,13 @@ class Button extends StatelessWidget {
           // surfaceTintColor: Colors.white,
           disabledForegroundColor: Colors.white,
           // disabledIconColor: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
         ),
         child: Row(
-          spacing: 15,
+          spacing: 8,
           mainAxisSize: MainAxisSize.min,
           children: [
             if (isProgressing)
@@ -42,7 +42,7 @@ class Button extends StatelessWidget {
               ),
             Text(
               text.toUpperCase(),
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ],
         ),

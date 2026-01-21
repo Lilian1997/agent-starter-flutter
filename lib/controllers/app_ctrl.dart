@@ -172,13 +172,19 @@ class AppCtrl extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> connect() async {
+  /// 連接到 LiveKit 房間
+  /// [roomName] 房間名稱
+  /// [nickName] 使用者暱稱（可選）
+  Future<void> connect({
+    String roomName = 'my-test-room',
+    String? nickName,
+  }) async {
     if (isSessionStarting) {
       _logger.fine('Connection attempt ignored: session already starting.');
       return;
     }
 
-    _logger.info('Starting session connection…');
+    _logger.info('Starting session connection to room: $roomName, nickName: $nickName');
     isSessionStarting = true;
     notifyListeners();
 
@@ -194,7 +200,11 @@ class AppCtrl extends ChangeNotifier {
       }
 
       // 2. Get LiveKit token
-      final liveKitToken = await _tokenRepo.getToken(accessToken, 'my-test-room');
+      final liveKitToken = await _tokenRepo.getToken(
+        accessToken,
+        roomName,
+        nickName: nickName,
+      );
 
       // 3. Connect using the logic from prompt
       final url = dotenv.env['LIVEKIT_URL']?.replaceAll('"', '') ?? '';
@@ -202,6 +212,7 @@ class AppCtrl extends ChangeNotifier {
       await _connectToRoom(url, liveKitToken);
 
       if (session.connectionState == sdk.ConnectionState.connected) {
+        _logger.warning('Connected to room');
         appScreenState = AppScreenState.agent;
         notifyListeners();
       }
