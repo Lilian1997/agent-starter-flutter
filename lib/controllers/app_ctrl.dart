@@ -11,6 +11,7 @@ import 'package:uuid/uuid.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import '../support/auth_repository.dart';
+import '../support/audio_channel_service.dart';
 import '../support/livekit_token_repository.dart';
 
 
@@ -208,6 +209,9 @@ class AppCtrl extends ChangeNotifier {
 
     // Check initial auth state
     checkAuth();
+    
+    // Enable left-channel-only audio output for car head unit
+    _initAudioChannel();
   }
 
   Future<void> checkAuth() async {
@@ -218,6 +222,13 @@ class AppCtrl extends ChangeNotifier {
       appScreenState = AppScreenState.login;
     }
     notifyListeners();
+  }
+  
+  /// Initialize audio channel settings for car head unit.
+  /// Enables left-channel-only audio output.
+  Future<void> _initAudioChannel() async {
+    final result = await AudioChannelService.setLeftChannelOnly(true);
+    _logger.info('Left channel audio initialized: $result');
   }
 
   Future<void> login() async {

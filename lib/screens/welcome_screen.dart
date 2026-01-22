@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart' as sdk;
 import 'package:provider/provider.dart';
 import '../controllers/app_ctrl.dart' as ctrl;
+import '../widgets/audio_channel_toggle.dart';
 import '../widgets/button.dart' as buttons;
 
 class WelcomeScreen extends StatelessWidget {
@@ -11,151 +12,133 @@ class WelcomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext ctx) {
     return Scaffold(
-      body: Stack(
-        children: [
-          // Background (Light Theme Gradient)
-          Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(0xFFF8FAFC), // Slate 50
-                  Color(0xFFE2E8F0), // Slate 200
-                  Color(0xFFF1F5F9), // Slate 100
-                ],
-              ),
-            ),
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFFF8FAFC), // Slate 50
+              Color(0xFFE2E8F0), // Slate 200
+              Color(0xFFF1F5F9), // Slate 100
+            ],
           ),
+        ),
+        child: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isCompact = constraints.maxHeight < 500;
+              final horizontalPadding = isCompact ? 12.0 : 16.0;
+              final verticalPadding = isCompact ? 8.0 : 12.0;
 
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                children: [
-                  // Fixed Header (always visible, not scrolling)
-                  _buildHeader(ctx),
-                  const SizedBox(height: 24),
+              return Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: horizontalPadding,
+                  vertical: verticalPadding,
+                ),
+                child: Column(
+                  children: [
+                    // Header
+                    _buildHeader(ctx, isCompact),
+                    SizedBox(height: isCompact ? 12 : 16),
 
-                  // Scrollable Main Content
-                  Expanded(
-                    child: Row(
-                      children: [
-                        // Left Column (Hero Action)
-                        Expanded(
-                          flex: 3,
-                          child: _buildHeroAction(ctx),
-                        ),
-                        const SizedBox(width: 8),
-
-                        // Right Column (Status & Info)
-                        // Expanded(
-                        //   flex: 2,
-                        //   child: Column(
-                        //     children: [
-                        //       _buildAudioStatus(),
-                        //       const SizedBox(height: 8),
-                        //       Expanded(child: _buildVehicleStatus()),
-                        //     ],
-                        //   ),
-                        // ),
-                      ],
+                    // Main Content
+                    Expanded(
+                      child: _buildHeroAction(ctx, isCompact),
                     ),
-                    // LayoutBuilder(
-                    //   builder: (context, constraints) {
-                    //     final screenHeight = constraints.maxHeight;
-                    //     final isCompact = screenHeight < 400;
-
-                    //     if (isCompact) {
-                    //       return SingleChildScrollView(
-                    //         child: _buildCompactLayout(ctx),
-                    //       );
-                    //     } else {
-                    //       // Desktop two-column layout
-                    //       return _buildDesktopLayout(ctx);
-                    //     }
-                    //   },
-
-                    // ),
-                  ),
-                ],
-              ),
-            ),
+                  ],
+                ),
+              );
+            },
           ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildHeader(BuildContext ctx) {
+  Widget _buildHeader(BuildContext ctx, bool isCompact) {
+    final iconSize = isCompact ? 18.0 : 24.0;
+    final titleFontSize = isCompact ? 16.0 : 20.0;
+
     return Row(
       children: [
         // Logo & Title
         Container(
-          padding: const EdgeInsets.all(10),
+          padding: EdgeInsets.all(isCompact ? 6 : 10),
           decoration: BoxDecoration(
             color: Colors.blueAccent,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(isCompact ? 8 : 12),
             boxShadow: [
-              BoxShadow(color: Colors.blueAccent.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4)),
+              BoxShadow(
+                color: Colors.blueAccent.withOpacity(0.3),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
+              ),
             ],
           ),
-          child: const Icon(Icons.drive_eta, color: Colors.white, size: 24),
+          child: Icon(Icons.drive_eta, color: Colors.white, size: iconSize),
         ),
-        const SizedBox(width: 12),
+        SizedBox(width: isCompact ? 8 : 12),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'IVI Assist',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
+                style: TextStyle(
+                  fontSize: titleFontSize,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
                 overflow: TextOverflow.ellipsis,
               ),
               Text(
                 'CONNECTED',
-                style:
-                    TextStyle(fontSize: 10, color: Colors.grey[600], letterSpacing: 1.2, fontWeight: FontWeight.w600),
+                style: TextStyle(
+                  fontSize: isCompact ? 8 : 10,
+                  color: Colors.grey[600],
+                  letterSpacing: 1.2,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
         ),
 
-        // Status badges (compact icon-only style)
-        _buildStatusIcon(Icons.signal_cellular_alt, const Color(0xFF10B981), '5G'),
-        const SizedBox(width: 8),
-        _buildStatusIcon(Icons.bluetooth, const Color(0xFF3B82F6), 'BT'),
-        const SizedBox(width: 12),
+        // Status badges
+        _buildStatusIcon(Icons.signal_cellular_alt, const Color(0xFF10B981), '5G', isCompact),
+        SizedBox(width: isCompact ? 4 : 8),
+        _buildStatusIcon(Icons.bluetooth, const Color(0xFF3B82F6), 'BT', isCompact),
+        SizedBox(width: isCompact ? 8 : 12),
 
-        // Logout button (always visible)
-        _buildLogoutButton(ctx),
+        // Logout button
+        _buildLogoutButton(ctx, isCompact),
       ],
     );
   }
 
-  /// Compact status icon with tooltip
-  Widget _buildStatusIcon(IconData icon, Color color, String tooltip) {
+  Widget _buildStatusIcon(IconData icon, Color color, String tooltip, bool isCompact) {
     return Tooltip(
       message: tooltip,
       child: Container(
-        padding: const EdgeInsets.all(8),
+        padding: EdgeInsets.all(isCompact ? 4 : 8),
         decoration: BoxDecoration(
           color: color.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(isCompact ? 6 : 8),
           border: Border.all(color: color.withOpacity(0.2)),
         ),
-        child: Icon(icon, color: color, size: 16),
+        child: Icon(icon, color: color, size: isCompact ? 12 : 16),
       ),
     );
   }
 
-  Widget _buildLogoutButton(BuildContext ctx) {
+  Widget _buildLogoutButton(BuildContext ctx, bool isCompact) {
     return GestureDetector(
       onTap: () {
         Provider.of<ctrl.AppCtrl>(ctx, listen: false).logout();
       },
       child: Container(
-        padding: const EdgeInsets.all(10),
+        padding: EdgeInsets.all(isCompact ? 6 : 10),
         decoration: BoxDecoration(
           color: Colors.white,
           shape: BoxShape.circle,
@@ -168,153 +151,52 @@ class WelcomeScreen extends StatelessWidget {
           ],
           border: Border.all(color: Colors.grey[200]!),
         ),
-        child: const Icon(Icons.logout, color: Colors.redAccent, size: 20),
+        child: Icon(Icons.logout, color: Colors.redAccent, size: isCompact ? 16 : 20),
       ),
     );
   }
 
-  Widget _buildHeroAction(BuildContext ctx) {
+  Widget _buildHeroAction(BuildContext ctx, bool isCompact) {
     return _GlassCard(
+      isCompact: isCompact,
       child: Consumer2<ctrl.AppCtrl, sdk.Session>(
         builder: (ctx, appCtrl, session, child) {
           final isConnecting = appCtrl.isSessionStarting || session.connectionState != sdk.ConnectionState.disconnected;
 
           return Column(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
+              Text(
                 'Need Assistance on the Road?',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87),
+                style: TextStyle(
+                  fontSize: isCompact ? 18 : 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 24),
+              SizedBox(height: isCompact ? 16 : 24),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 48.0),
+                padding: EdgeInsets.symmetric(horizontal: isCompact ? 24 : 48),
                 child: SizedBox(
-                  // Wrap in SizedBox for width if Button doesn't support width
                   width: double.infinity,
                   child: buttons.Button(
                     text: isConnecting ? 'Connecting...' : 'Start Call',
-                    // icon: Icons.support_agent, // Ensure your Button widget supports icon if you want it
                     isProgressing: isConnecting,
                     onPressed: () => appCtrl.connect(),
                   ),
                 ),
               ),
-
+              SizedBox(height: isCompact ? 16 : 24),
+              // Audio Channel Control
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: isCompact ? 24 : 48),
+                child: const AudioChannelToggle(),
+              ),
             ],
           );
         },
-      ),
-    );
-  }
-
-  Widget _buildAudioStatus() {
-    return _GlassCard(
-      height: 160,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Audio Routing',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
-              ),
-              Flexible(
-                child: Text(
-                  'CHANGE',
-                  style: TextStyle(fontSize: 12, color: Colors.blueAccent, fontWeight: FontWeight.bold),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          // Visual Mockup of Balance
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.grey[100], // Colors.black26 -> Light Grey
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey[200]!),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text('Left', style: TextStyle(color: Colors.grey[500], fontSize: 10)),
-                Expanded(
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Container(height: 4, color: Colors.grey[300]), // Grey 800 -> Grey 300
-                      Container(
-                        height: 4,
-                        width: 100,
-                        margin: const EdgeInsets.only(left: 40), // Shifted right for "Driver"
-                        decoration: BoxDecoration(
-                          color: Colors.blueAccent,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Text('Right', style: TextStyle(color: Colors.grey[500], fontSize: 10)),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Center(
-              child: Text('Driver Side Focus', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black87))),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildVehicleStatus() {
-    return _GlassCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Vehicle ID',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
-          ),
-          const SizedBox(height: 16),
-          _buildInfoRow('Model', 'Model X-1'),
-          const Divider(color: Colors.black12), // Colors.white10 -> Black12
-          _buildInfoRow('VIN End', '...8492'),
-          const Divider(color: Colors.black12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('LAST SERVICE', style: TextStyle(color: Colors.grey[600], fontSize: 10)),
-                  const SizedBox(height: 4),
-                  const Text('Oct 24, 2023', style: TextStyle(fontWeight: FontWeight.w600, color: Colors.black87)),
-                ],
-              ),
-              const Icon(Icons.check_circle, color: Color(0xFF10B981)), // AppTheme.success
-            ],
-          )
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: TextStyle(color: Colors.grey[600], fontSize: 12)),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.black87)),
-        ],
       ),
     );
   }
@@ -323,17 +205,22 @@ class WelcomeScreen extends StatelessWidget {
 class _GlassCard extends StatelessWidget {
   final Widget child;
   final double? height;
+  final bool isCompact;
 
-  const _GlassCard({required this.child, this.height});
+  const _GlassCard({
+    required this.child, 
+    this.height,
+    this.isCompact = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       height: height,
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(isCompact ? 12 : 16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9), // Glassy white
-        borderRadius: BorderRadius.circular(24),
+        color: Colors.white.withOpacity(0.9),
+        borderRadius: BorderRadius.circular(isCompact ? 16 : 24),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),

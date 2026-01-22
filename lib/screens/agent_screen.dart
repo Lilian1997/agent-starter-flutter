@@ -152,41 +152,45 @@ class AgentScreen extends StatelessWidget {
               ),
               child: const Text('Screenshare View'),
             ),
-            transcriptionsBuilder: (ctx) => Column(
-              mainAxisSize: MainAxisSize.max,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => ctx.read<AppCtrl>().messageFocusNode.unfocus(),
-                    child: Consumer<AppCtrl>(
-                      builder: (context, appCtrl, _) {
-                        final messages = appCtrl.allMessages;
-                        if (messages.isEmpty) {
-                          return _AgentListeningPlaceholder(canListen: appCtrl.session.agent.canListen);
-                        }
-                        return _MergedChatScrollView(
-                          messages: messages,
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-                        );
-                      },
+            transcriptionsBuilder: (ctx) => SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.max,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Live Transcript Header
+                  const _TranscriptHeader(),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => ctx.read<AppCtrl>().messageFocusNode.unfocus(),
+                      child: Consumer<AppCtrl>(
+                        builder: (context, appCtrl, _) {
+                          final messages = appCtrl.allMessages;
+                          if (messages.isEmpty) {
+                            return _AgentListeningPlaceholder(canListen: appCtrl.session.agent.canListen);
+                          }
+                          return _MergedChatScrollView(
+                            messages: messages,
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          );
+                        },
+                      ),
                     ),
                   ),
-                ),
-                Padding(
-                  padding:
-                      EdgeInsets.only(left: 16, right: 16, bottom: max(0, MediaQuery.of(ctx).viewInsets.bottom - 80)),
-                  child: Selector<AppCtrl, bool>(
-                    selector: (ctx, appCtx) => appCtx.isSendButtonEnabled,
-                    builder: (ctx, isSendEnabled, child) => MessageBar(
-                      focusNode: ctx.read<AppCtrl>().messageFocusNode,
-                      isSendEnabled: isSendEnabled,
-                      controller: ctx.read<AppCtrl>().messageCtrl,
-                      onSendTap: () => ctx.read<AppCtrl>().sendMessage(),
+                  Padding(
+                    padding:
+                        EdgeInsets.only(left: 16, right: 16, bottom: max(16, MediaQuery.of(ctx).viewInsets.bottom - 80)),
+                    child: Selector<AppCtrl, bool>(
+                      selector: (ctx, appCtx) => appCtx.isSendButtonEnabled,
+                      builder: (ctx, isSendEnabled, child) => MessageBar(
+                        focusNode: ctx.read<AppCtrl>().messageFocusNode,
+                        isSendEnabled: isSendEnabled,
+                        controller: ctx.read<AppCtrl>().messageCtrl,
+                        onSendTap: () => ctx.read<AppCtrl>().sendMessage(),
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -194,6 +198,64 @@ class AgentScreen extends StatelessWidget {
 }
 
 
+
+/// Live Transcript header with recording indicator
+class _TranscriptHeader extends StatelessWidget {
+  const _TranscriptHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.chat_bubble_outline,
+            size: 18,
+            color: Color(0xFF666666),
+          ),
+          const SizedBox(width: 8),
+          const Text(
+            'Live Transcript',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF333333),
+            ),
+          ),
+          const Spacer(),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE53935),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.fiber_manual_record,
+                  size: 8,
+                  color: Colors.white,
+                ),
+                SizedBox(width: 4),
+                Text(
+                  'RECORDING',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _AgentListeningPlaceholder extends StatelessWidget {
   const _AgentListeningPlaceholder({required this.canListen});
@@ -301,8 +363,6 @@ class _UnifiedMessageBubble extends StatelessWidget {
   Widget build(BuildContext context) {
     final text = message.text.trim();
     if (text.isEmpty) return const SizedBox.shrink();
-
-    final colorScheme = Theme.of(context).colorScheme;
     
     // Determine alignment and colors based on sender type
     final bool isUser = message.sender == MessageSender.user;
@@ -312,20 +372,20 @@ class _UnifiedMessageBubble extends StatelessWidget {
     Color background;
     Color foreground;
     
+    // Light color scheme
     if (isUser) {
       alignment = Alignment.centerRight;
-      background = colorScheme.primary;
-      foreground = colorScheme.onPrimary;
+      background = const Color(0xFF2196F3); // Light blue
+      foreground = Colors.white;
     } else if (isPeer) {
       alignment = Alignment.centerLeft;
-      background = const Color.fromARGB(255, 102, 102, 102)!; 
-      foreground = Colors.white;
+      background = const Color(0xFFE8E8E8); // Light grey
+      foreground = const Color(0xFF333333);
     } else {
-      // Agent
+      // Agent - light grey bubble
       alignment = Alignment.centerLeft;
-      // Force readable colors for Agent for now to fix "black on black"
-      background = Colors.grey[800]!; 
-      foreground = Colors.white;
+      background = const Color(0xFFF0F0F0);
+      foreground = const Color(0xFF333333);
     }
 
     return Align(
