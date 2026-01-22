@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_appauth/flutter_appauth.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -10,6 +12,26 @@ part 'auth_repository.g.dart';
 // Singleton instances to prevent state loss during OAuth flow
 final FlutterAppAuth _sharedAppAuth = FlutterAppAuth();
 const FlutterSecureStorage _sharedSecureStorage = FlutterSecureStorage();
+
+/// User information extracted from the ID token
+class UserInfo {
+  final String? name;
+  final String? preferredUsername;
+  final String? email;
+  final String? givenName;
+  final String? familyName;
+
+  const UserInfo({
+    this.name,
+    this.preferredUsername,
+    this.email,
+    this.givenName,
+    this.familyName,
+  });
+
+  /// Returns the best available display name
+  String get displayName => name ?? preferredUsername ?? email ?? 'User';
+}
 
 @riverpod
 AuthRepository authRepository(Ref ref) {
@@ -44,6 +66,37 @@ class AuthRepository {
 
   Future<String?> getAccessToken() async {
     return await _secureStorage.read(key: _tokenKey);
+  }
+
+  /// Get user information from the stored ID token
+  Future<UserInfo?> getUserInfo() async {
+    try {
+      final idToken = await _secureStorage.read(key: _idTokenKey);
+      if (idToken == null) return null;
+
+      // JWT format: header.payload.signature
+      final parts = idToken.split('.');
+      if (parts.length != 3) return null;
+
+      // Decode the payload (middle part)
+      // Add padding if needed for base64 decoding
+      String payload = parts[1];
+      payload = base64.normalize(payload);
+      
+      final payloadJson = utf8.decode(base64.decode(payload));
+      final Map<String, dynamic> claims = jsonDecode(payloadJson);
+
+      return UserInfo(
+        name: claims['name'] as String?,
+        preferredUsername: claims['preferred_username'] as String?,
+        email: claims['email'] as String?,
+        givenName: claims['given_name'] as String?,
+        familyName: claims['family_name'] as String?,
+      );
+    } catch (e) {
+      print('⚠️ [AuthRepository] Failed to parse ID token: $e');
+      return null;
+    }
   }
 
   Future<String?> login() async {

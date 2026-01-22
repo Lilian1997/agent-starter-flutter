@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart' as sdk;
 import 'package:provider/provider.dart';
 import '../controllers/app_ctrl.dart' as ctrl;
+import '../support/auth_repository.dart';
 import '../widgets/audio_channel_toggle.dart';
 import '../widgets/button.dart' as buttons;
 
@@ -92,14 +93,22 @@ class WelcomeScreen extends StatelessWidget {
                 ),
                 overflow: TextOverflow.ellipsis,
               ),
-              Text(
-                'CONNECTED',
-                style: TextStyle(
-                  fontSize: isCompact ? 8 : 10,
-                  color: Colors.grey[600],
-                  letterSpacing: 1.2,
-                  fontWeight: FontWeight.w600,
-                ),
+              // Show user name from Keycloak token
+              FutureBuilder<UserInfo?>(
+                future: AuthRepository.instance.getUserInfo(),
+                builder: (context, snapshot) {
+                  final displayName = snapshot.data?.displayName;
+                  return Text(
+                    displayName != null ? 'Welcome, $displayName' : 'CONNECTED',
+                    style: TextStyle(
+                      fontSize: isCompact ? 8 : 10,
+                      color: Colors.grey[600],
+                      letterSpacing: displayName != null ? 0 : 1.2,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  );
+                },
               ),
             ],
           ),

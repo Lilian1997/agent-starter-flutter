@@ -71,7 +71,9 @@ class LiveKitTokenRepository {
     } on DioException catch (e) {
       // 針對不同的 HTTP 錯誤狀態碼處理
       final statusCode = e.response?.statusCode;
-      final errorMessage = e.response?.data?['message'] ?? e.message;
+      // Check if data is a Map before accessing ['message']
+      final responseData = e.response?.data;
+      final errorMessage = (responseData is Map ? responseData['message'] : null) ?? e.message;
 
       switch (statusCode) {
         case 401:
