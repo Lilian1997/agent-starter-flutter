@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_webrtc/flutter_webrtc.dart' as rtc;
 import 'package:intl/intl.dart';
 import 'package:livekit_client/livekit_client.dart' as sdk;
 import 'package:livekit_components/livekit_components.dart' as components;
@@ -225,8 +226,27 @@ class AppCtrl extends ChangeNotifier {
   }
   
   /// Initialize audio channel settings for car head unit.
-  /// Enables left-channel-only audio output.
+  /// Enables left-channel-only audio output and sets audio attributes for navigation guidance.
   Future<void> _initAudioChannel() async {
+    // 1. Set Android Audio Attributes for IVI (Navigation/Assistant priority)
+    // This allows the car head unit to route audio to the driver and duck music.
+    try {
+      await rtc.Helper.setAndroidAudioConfiguration(
+        rtc.AndroidAudioConfiguration(
+          manageAudioFocus: true,
+          androidAudioMode: rtc.AndroidAudioMode.inCommunication,
+          androidAudioFocusMode: rtc.AndroidAudioFocusMode.gainTransientMayDuck,
+          androidAudioStreamType: rtc.AndroidAudioStreamType.voiceCall,
+          androidAudioAttributesUsageType: rtc.AndroidAudioAttributesUsageType.assistanceNavigationGuidance,
+          androidAudioAttributesContentType: rtc.AndroidAudioAttributesContentType.speech,
+        ),
+      );
+      _logger.info('Android Audio Configuration set to AssistanceNavigationGuidance');
+    } catch (e) {
+      _logger.warning('Failed to set Android Audio Configuration: $e');
+    }
+
+    // 2. Set Left Channel Only
     final result = await AudioChannelService.setLeftChannelOnly(true);
     _logger.info('Left channel audio initialized: $result');
   }
@@ -427,6 +447,16 @@ class AppCtrl extends ChangeNotifier {
   }
 
   Future<void> disconnect() async {
+    // Unregister text stream handler before disconnecting to allow reconnection
+    room.unregisterTextStreamHandler('lk.chat');
+    
+    // Dispose room listener
+    _roomListener?.dispose();
+    _roomListener = null;
+    
+    // Clear peer messages
+    peerMessages.clear();
+    
     await session.end();
     session.restoreMessageHistory(const []);
     appScreenState = AppScreenState.welcome;
