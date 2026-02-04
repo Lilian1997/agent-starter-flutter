@@ -84,3 +84,54 @@ To use this template with video (or screen sharing) input, you may need to run t
 ## Contributing
 
 This template is open source and we welcome contributions! Please open a PR or issue through GitHub, and don't forget to join us in the [LiveKit Community Slack](https://livekit.io/join-slack)!
+
+## 自定義 WebRTC 實作 (Custom WebRTC Implementation)
+
+本專案使用的是 **自定義修補過的 WebRTC AAR**，而非標準官方版本。
+
+### 為什麼？
+我們需要實作 **右聲道靜音 (Right Channel Mute)** 功能。然而測試發現，Android 下的 WebRTC 經常協商出 **單聲道 (Mono, 1-channel)** 音訊，系統會自動將其播放到雙邊喇叭。這導致單純在軟體層面靜音右聲道的邏輯失效（因為輸入源本身就是單聲道）。
+
+### 解決方案：強制立體聲轉換 (Forced Stereo Upmixing)
+我們修改了 `webrtc-android` 函式庫中的 `WebRtcAudioTrack.java` 類別，做了以下調整：
+1.  **偵測單聲道輸入**：檢查協商出的 Session 是否為單聲道。
+2.  **強制立體聲輸出**：無視輸入格式，強制將 Android `AudioTrack` 初始化為立體聲模式。
+3.  **升頻與靜音 (Upmix & Mute)**：手動將單聲道訊號轉換為立體聲（左聲道 = 原始訊號，右聲道 = 靜音/0）。
+
+### 檔案位置
+修改後的 AAR 位於本專案的本地目錄中：
+- **路徑**：`android/repo/io/github/webrtc-sdk/android/137.7151.04-modified/`
+- **檔案**：`android-137.7151.04-modified.aar`
+
+專案已在 `android/build.gradle` 中配置，優先使用此本地倉庫，並將所有標準 WebRTC 依賴替換為此特定版本。
+
+### 版本對應說明 (Version Mapping)
+本專案的依賴版本如下：
+- **livekit_client**: `2.6.1`
+- **flutter_webrtc**: `1.2.1`
+- **Android WebRTC SDK**: `137.7151.04` (M137)
+
+正因為 `flutter_webrtc 1.2.1` 預設依賴此特定版本的 WebRTC SDK，我們才針對 `137.7151.04` 進行下載與修補。
+**注意**：若未來升級 `livekit_client` 或 `flutter_webrtc`，必須確認新的底層 WebRTC SDK 版本，並針對該新版本重新下載 AAR 進行上述的修補步驟。
+
+
+### 本地 Maven 倉庫維護 (AAR & POM)
+
+本專案使用本地 Maven 倉庫（位於 `android/repo`）來載入修補過的 AAR。
+
+**⚠️ 重要檢查點 (POM 檔案)：**
+當您更新 AAR 或手動建立目錄時，請務必確認 `.pom` 檔案內容。
+- **路徑**：`android/repo/io/github/webrtc-sdk/android/137.7151.04-modified/android-137.7151.04-modified.pom`
+- **內容核心**：裡面的 `<version>` 標籤內容必須與**資料夾名稱**及**檔案名稱**完全一致。
+  ```xml
+  <version>137.7151.04-modified</version>
+  ```
+- **失敗症狀**：如果 POM 內容與版本路徑不符，Gradle 會發生 `Could not find...` 錯誤，即使檔案確實在目錄下也一樣。
+
+### 未來維護 / 更新
+如果您需要更新 LiveKit（可能需要更新版本的 WebRTC）或再次修改此邏輯，請參考開發機上的 **WebRTC Solution Package**（位於 `~/Desktop/webrtc_solution_package`，或已另外封存）。
+
+該套件包含：
+- **`REPRODUCTION_GUIDE.md`**：AAR 集成指南。
+- **`AAR_COMPILATION_GUIDE.md`**：從源碼重新編譯 AAR 的指南。
+- **`webrtc_patch_demo/`**：可直接運行的 Gradle 專案，用於編譯 Java 修改代碼。

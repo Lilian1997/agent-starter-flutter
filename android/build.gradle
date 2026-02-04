@@ -1,7 +1,21 @@
 allprojects {
     repositories {
+        // Local Maven repo with modified WebRTC AAR (must be FIRST to override remote)
+        maven {
+            url "$rootProject.projectDir/repo"
+        }
         google()
         mavenCentral()
+    }
+
+    configurations.all {
+         resolutionStrategy.dependencySubstitution {
+            substitute module('io.github.nickmitchko.AntMediaWebRTCAndroid:webrtc-android:137.7151.00-nickmitchko') using module('io.github.webrtc-sdk:android:137.7151.04-modified')
+            substitute module('io.github.nickmitchko.AntMediaWebRTCAndroid:webrtc-android:+') using module('io.github.webrtc-sdk:android:137.7151.04-modified')
+            substitute module('io.github.nickmitchko.AntMediaWebRTCAndroid:webrtc-android') using module('io.github.webrtc-sdk:android:137.7151.04-modified')
+            substitute module('io.github.webrtc-sdk:android:137.7151.04') using module('io.github.webrtc-sdk:android:137.7151.04-modified')
+            substitute module('io.github.webrtc-sdk:android') using module('io.github.webrtc-sdk:android:137.7151.04-modified')
+        }
     }
 }
 
@@ -16,3 +30,4 @@ subprojects {
 tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }
+
