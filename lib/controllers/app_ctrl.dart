@@ -265,6 +265,14 @@ class AppCtrl extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<bool> refreshToken() async {
+    final success = await _authRepo.refreshToken();
+    if (success) {
+      await checkAuth(); // Re-verify auth state
+    }
+    return success;
+  }
+
   Future<void> cleanUp() async {
     if (_hasCleanedUp) return;
     _hasCleanedUp = true;

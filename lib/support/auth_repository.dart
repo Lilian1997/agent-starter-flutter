@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:dio/dio.dart';
 import 'package:flutter_appauth/flutter_appauth.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -156,6 +157,70 @@ class AuthRepository {
       print('❌ [AuthRepository] OAuth error: $e');
       print('❌ [AuthRepository] Stack trace: $stackTrace');
       return null;
+    }
+  }
+
+  /// Manually refresh token using credentials from .env (For testing only)
+  Future<bool> refreshToken() async {
+    final tokenLocation = dotenv.env['TOKEN_LOCATION'];
+    final username = dotenv.env['USERNAME'];
+    final password = dotenv.env['PASSWORD'];
+    final clientId = dotenv.env['CLIENT_ID'];
+    final clientSecret = dotenv.env['CLIENT_SECRET'];
+
+    if (tokenLocation == null ||
+        username == null ||
+        password == null ||
+        clientId == null ||
+        clientSecret == null) {
+      print('❌ [AuthRepository] Missing credentials in .env for refresh token');
+      return false;
+    }
+
+    try {
+      print('🚀 [AuthRepository] Refreshing tokens manually...');
+      final dio = Dio();
+      final response = await dio.post(
+        tokenLocation,
+        options: Options(
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Cookie': 'KEYCLOAK_LOCALE=zh-TW', // Match curl script
+          },
+        ),
+        data: {
+          'username': username,
+          'password': password,
+          'grant_type': 'password',
+          'scope': 'openid',
+          'client_id': clientId,
+          'client_secret': clientSecret,
+        },
+      );
+
+      if (response.statusCode == 200 && response.data != null) {
+        final data = response.data as Map<String, dynamic>;
+        final newAccessToken = data['access_token'];
+        final newIdToken = data['id_token'];
+
+        if (newAccessToken != null) {
+          await _secureStorage.write(key: _tokenKey, value: newAccessToken);
+          print('✅ [AuthRepository] Access token updated');
+        }
+
+        if (newIdToken != null) {
+          await _secureStorage.write(key: _idTokenKey, value: newIdToken);
+          print('✅ [AuthRepository] ID token updated');
+        }
+        
+        return true;
+      } else {
+        print('❌ [AuthRepository] Failed to refresh token: ${response.statusCode} - ${response.data}');
+        return false;
+      }
+    } catch (e) {
+      print('❌ [AuthRepository] Refresh token error: $e');
+      return false;
     }
   }
 

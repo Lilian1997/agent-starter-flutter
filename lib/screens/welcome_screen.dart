@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'package:livekit_client/livekit_client.dart' as sdk;
 import 'package:provider/provider.dart';
@@ -60,6 +61,7 @@ class WelcomeScreen extends StatelessWidget {
   Widget _buildHeader(BuildContext ctx, bool isCompact) {
     final iconSize = isCompact ? 18.0 : 24.0;
     final titleFontSize = isCompact ? 16.0 : 20.0;
+    final canRefresh = dotenv.env['CAN_REFRESH_ACCESS_TOKEN'] == 'true';
 
     return Row(
       children: [
@@ -120,9 +122,47 @@ class WelcomeScreen extends StatelessWidget {
         _buildStatusIcon(Icons.bluetooth, const Color(0xFF3B82F6), 'BT', isCompact),
         SizedBox(width: isCompact ? 8 : 12),
 
+        // Refresh Token Button (Test Mode)
+        if (canRefresh) ...[
+          _buildRefreshButton(ctx, isCompact),
+          SizedBox(width: isCompact ? 8 : 12),
+        ],
+
         // Logout button
         _buildLogoutButton(ctx, isCompact),
       ],
+    );
+  }
+
+  Widget _buildRefreshButton(BuildContext ctx, bool isCompact) {
+    return GestureDetector(
+      onTap: () async {
+        final success = await Provider.of<ctrl.AppCtrl>(ctx, listen: false).refreshToken();
+        if (ctx.mounted) {
+          ScaffoldMessenger.of(ctx).showSnackBar(
+            SnackBar(
+              content: Text(success ? 'Token refreshed successfully' : 'Failed to refresh token'),
+              backgroundColor: success ? Colors.green : Colors.red,
+            ),
+          );
+        }
+      },
+      child: Container(
+        padding: EdgeInsets.all(isCompact ? 6 : 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+          border: Border.all(color: Colors.orange.withOpacity(0.3)),
+        ),
+        child: Icon(Icons.refresh, color: Colors.orange, size: isCompact ? 16 : 20),
+      ),
     );
   }
 
@@ -193,16 +233,27 @@ class WelcomeScreen extends StatelessWidget {
                   child: buttons.Button(
                     text: isConnecting ? 'Connecting...' : 'Start Call',
                     isProgressing: isConnecting,
-                    onPressed: () => appCtrl.connect(),
+                    onPressed: () {
+                       try {
+                         appCtrl.connect();
+                       } catch (e) {
+                         // This catch block might not drastically change UI if appCtrl handles it, 
+                         // but redundancy is fine or we keep it simple as appCtrl now doesn't throw but sets error state.
+                         // However, if we want to be safe:
+                         ScaffoldMessenger.of(ctx).showSnackBar(
+                           SnackBar(content: Text('Connection failed: $e')),
+                         );
+                       }
+                    },
                   ),
                 ),
               ),
               SizedBox(height: isCompact ? 16 : 24),
               // Audio Channel Control
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: isCompact ? 24 : 48),
-                child: const AudioChannelToggle(),
-              ),
+              // Padding(
+              //   padding: EdgeInsets.symmetric(horizontal: isCompact ? 24 : 48),
+              //   child: const AudioChannelToggle(),
+              // ),
             ],
           );
         },
