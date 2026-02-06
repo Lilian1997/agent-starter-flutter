@@ -88,7 +88,7 @@ class VoiceAssistantApp extends StatelessWidget {
                               }
                               return AppLayoutSwitcher(
                                 frontBuilder: (ctx) => const WelcomeScreen(),
-                                backBuilder: (ctx) => const AgentScreen(),
+                                backBuilder: (ctx) => AgentScreen(key: ObjectKey(appCtrl.session)),
                                 isFront: screen == AppScreenState.welcome,
                               );
                             },
