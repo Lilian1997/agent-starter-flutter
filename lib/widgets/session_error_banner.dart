@@ -10,18 +10,21 @@ class SessionErrorBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<sdk.Session>(
-      builder: (context, session, _) {
+    return Consumer2<sdk.Session, AppCtrl>(
+      builder: (context, session, appCtrl, _) {
         final sdk.SessionError? sessionError = session.error;
         final sdk.AgentFailure? agentError = session.agent.error;
+        final String? connectionError = appCtrl.connectionError;
 
-        final String? message = sessionError?.message ?? agentError?.message;
+        final String? message = sessionError?.message ?? agentError?.message ?? connectionError;
         if (message == null) {
           return const SizedBox.shrink();
         }
 
         Future<void> handleDismiss() async {
-          if (sessionError != null) {
+          if (connectionError != null) {
+            appCtrl.dismissError();
+          } else if (sessionError != null) {
             session.dismissError();
           } else {
             await context.read<AppCtrl>().disconnect();

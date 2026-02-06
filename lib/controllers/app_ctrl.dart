@@ -312,6 +312,14 @@ class AppCtrl extends ChangeNotifier {
     notifyListeners();
   }
 
+  // Error state for connection issues
+  String? connectionError;
+
+  void dismissError() {
+    connectionError = null;
+    notifyListeners();
+  }
+
   /// 連接到 LiveKit 房間
   /// [roomName] 房間名稱
   /// [nickName] 使用者暱稱（可選）
@@ -325,7 +333,10 @@ class AppCtrl extends ChangeNotifier {
     }
 
     _logger.info('Starting session connection to room: $roomName, nickName: $nickName');
+    
+    // Reset state
     isSessionStarting = true;
+    connectionError = null;
     notifyListeners();
 
     try {
@@ -358,6 +369,9 @@ class AppCtrl extends ChangeNotifier {
       }
     } catch (e) {
       _logger.severe('Connection error: $e');
+      // Strip "Exception: " prefix if present for cleaner display
+      final msg = e.toString().replaceAll('Exception: ', '');
+      connectionError = msg;
     } finally {
       isSessionStarting = false;
       notifyListeners();
