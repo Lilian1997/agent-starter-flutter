@@ -3,6 +3,6 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>io.github.webrtc-sdk</groupId>
   <artifactId>android</artifactId>
-  <version>137.7151.05</version>
+  <version>137.7151.04-modified</version>
   <packaging>aar</packaging>
 </project>
