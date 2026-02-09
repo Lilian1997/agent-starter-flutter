@@ -75,29 +75,24 @@ class VoiceAssistantApp extends StatelessWidget {
                 darkTheme: buildTheme(isLight: false),
                 // themeMode: ThemeMode.dark,
                 home: Builder(
-                  builder: (ctx) => Center(
-                    child: Container(
-                      constraints: const BoxConstraints(maxWidth: 620),
-                      child: Stack(
-                        children: [
-                          Selector<AppCtrl, AppScreenState>(
-                            selector: (ctx, appCtx) => appCtx.appScreenState,
-                            builder: (ctx, screen, _) {
-                              if (screen == AppScreenState.login) {
-                                return const LoginScreen();
-                              }
-                              return AppLayoutSwitcher(
-                                frontBuilder: (ctx) => const WelcomeScreen(),
-                                backBuilder: (ctx) => AgentScreen(key: ObjectKey(appCtrl.session)),
-                                isFront: screen == AppScreenState.welcome,
-                              );
-                            },
-                          ),
-                          if (appCtrl.appScreenState != AppScreenState.login)
-                             const SessionErrorBanner(),
-                        ],
+                  builder: (ctx) => Stack(
+                    children: [
+                      Selector<AppCtrl, AppScreenState>(
+                        selector: (ctx, appCtx) => appCtx.appScreenState,
+                        builder: (ctx, screen, _) {
+                          if (screen == AppScreenState.login) {
+                            return const LoginScreen();
+                          }
+                          return AppLayoutSwitcher(
+                            frontBuilder: (ctx) => const WelcomeScreen(),
+                            backBuilder: (ctx) => AgentScreen(key: ObjectKey(appCtrl.session)),
+                            isFront: screen == AppScreenState.welcome,
+                          );
+                        },
                       ),
-                    ),
+                      if (appCtrl.appScreenState != AppScreenState.login)
+                         const SessionErrorBanner(),
+                    ],
                   ),
                 ),
               ),

@@ -38,17 +38,23 @@ class WelcomeScreen extends StatelessWidget {
                   horizontal: horizontalPadding,
                   vertical: verticalPadding,
                 ),
-                child: Column(
-                  children: [
-                    // Header
-                    _buildHeader(ctx, isCompact),
-                    SizedBox(height: isCompact ? 12 : 16),
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 600),
+                    child: Column(
+                      children: [
+                        // Header
+                        _buildHeader(ctx, isCompact),
+                        SizedBox(height: isCompact ? 12 : 16),
 
-                    // Main Content
-                    Expanded(
-                      child: _buildHeroAction(ctx, isCompact),
+                        // Main Content
+                        Expanded(
+                          child: _buildHeroAction(ctx, isCompact),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               );
             },
